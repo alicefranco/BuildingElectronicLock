@@ -10,19 +10,19 @@
 #include <Ultrasonic.h>
 
 //led and lock pins
-#define TRAVA 13
-#define LED_C 0
-#define LED_O 2
+#define TRAVA 15
+#define LED_C 26
+#define LED_O 27
 
 //US pins
-#define pino_trigger 5
+#define pino_trigger 0
 #define pino_echo 4
 
 //connection parameters
 const char *ssid =  "Dermoestetica" ;// change according to your Network - cannot be longer than 32 characters!
 const char *pass =  "dermoaju2017se"; // change according to your Network
-const char *httpdestinationauth = "http://192.168.15.59:8081/token";// "http://httpbin.org/post"; // //
-const char *httpdestination = "http://192.168.15.59:8081/api/cartoes_RFID/verifyrfid";
+//const char *httpdestinationauth = "http://192.168.15.59:8081/token";// "http://httpbin.org/post"; // //
+const char *httpdestination = "http://www.appis.com.br/pontoapi/api/registro_acessos";
 
 
 //auxs
@@ -124,8 +124,6 @@ void setup() {
     delay(1000);
     connected = 0;
   }*/
-  Serial.println("AQQQuiiiiii");
-  mensagemInicial();
   //time setup
   time1 = millis();
   time2 = millis();
@@ -196,36 +194,31 @@ void loop() {
       }
       Serial.println(rfid);
 
+      //if connected test if the card is registered
       if(connected){
-        //check if the tag is registered
-        String messageAuth = createForm();
-        httpCode = sendPOST(httpdestinationauth, "", messageAuth, false);
-        if(httpCode == 200){
-          String message = createMsgUrlEnc(rfid, st);
-          String access_token = (*payload)["access_token"];
-          String token_type = (*payload)["token_type"];
-          String header = token_type + " " + access_token;
-  
-          httpCode = sendPOST(httpdestination, header, message, true);
-          if(httpCode == 200){
-            online = 1;
-            saved_cards[num_card] = rfid;
-            num_card++;
-            if(num_card >= num_card_t) num_card = 0;
-          }
-          else if(httpCode == 403){
-            online = 0;
-            mensagemCartaoNaoAut();
-            mensagemInicial();
-          }
-          else{
-            online = 0;
-            mensagemAcaoNegada();
-            mensagemInicial();
-          }
+        String message = createMsgUrlEnc(rfid, st);
+        //httpCode = sendPOST(httpdestination, header, message, true);
+        httpCode = sendPOST(httpdestination, message);
+        
+        if(httpCode == 201){
+          online = 1;
+          saved_cards[num_card] = rfid;
+          num_card++;
+          if(num_card >= num_card_t) num_card = 0;
+        }
+        else if(httpCode == 403){
+          online = 0;
+          mensagemCartaoNaoAut();
+          mensagemInicial();
+        }
+        else{
+          online = 0;
+          mensagemAcaoNegada();
+          mensagemInicial();
         }
       }
       else{
+      //if not connected, test if the card is saved locally
         stored = 0;
         for(int i = 0; i < num_card; i++){
           if(saved_cards[i] == rfid){
@@ -270,7 +263,7 @@ void loop() {
 }
 
 
-//send to server
+/*//send to server
 int sendPOST(String httpdestination, String header, String body, bool auth){
   int httpCode;
   if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
@@ -279,6 +272,41 @@ int sendPOST(String httpdestination, String header, String body, bool auth){
 
       http.begin(httpdestination);
       if(auth) http.addHeader("Authorization", header);
+      http.addHeader("Content-Type", "application/x-www-form-urlencoded");  //Specify content-type header
+
+
+      httpCode = http.POST(body);   //Send the request
+      String pl = http.getString();                  //Get the response payload
+      char pl2[1000];
+      pl.toCharArray(pl2, 1000);
+
+
+      JsonObject* x;
+      StaticJsonBuffer<1000> JSONBuffer;   //Memory pool
+      x = &(JSONBuffer.parseObject(pl2)); //Parse message
+
+      payload = x;
+      Serial.println(httpCode);   //Print HTTP return code
+      Serial.println(pl);    //Print request response payload
+
+
+      http.end();  //Close connection
+
+    }else{
+
+       Serial.println("Error in WiFi connection");
+    }
+    return httpCode;
+} */
+
+//send to server
+int sendPOST(String httpdestination, String body){
+  int httpCode;
+  if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
+
+      HTTPClient http;    //Declare object of class HTTPClient
+
+      http.begin(httpdestination);
       http.addHeader("Content-Type", "application/x-www-form-urlencoded");  //Specify content-type header
 
 
