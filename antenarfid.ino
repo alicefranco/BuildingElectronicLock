@@ -16,7 +16,7 @@
 
 //US pins
 #define pino_trigger 0
-#define pino_echo 12
+#define pino_echo 4
 
 //connection parameters
 const char *ssid =  "Dermoestetica" ;// change according to your Network - cannot be longer than 32 characters!
@@ -56,8 +56,8 @@ String ID_Local_Acesso = "1";
 String st = "false";
 
 //init
-//HardwareSerial serialArtificial(0);
-HardwareSerial Serial1(1);
+HardwareSerial antena1(0);
+HardwareSerial antena2(1);
 Ultrasonic ultrasonic(pino_trigger, pino_echo);
 
 StaticJsonBuffer<1000> b;
@@ -77,8 +77,11 @@ void setup() {
   digitalWrite(LED_O, HIGH); //set turned off
 
   Serial.begin(9600);    // Initialize serial communications
-  Serial1.begin(9600, SERIAL_8N1, 33, 32);
-  Serial1.flush();
+  antena1.begin(9600);
+  antena1.flush();
+  
+  antena2.begin(9600, SERIAL_8N1, 12, 13);
+  antena2.flush();
 
   delay(250);
   Serial.println("Conectando....");
@@ -143,24 +146,24 @@ void loop() {
     connected = 1;
   }
 
-  
-  Serial1.begin(9600, SERIAL_8N1, 33, 32);
+  antena1.begin(9600);
+  antena2.begin(9600, SERIAL_8N1, 12, 13);
   //timing 
   if((start == 0) || ((millis() - time1) >= 5000)){
     delay(200);
     //read a tag with 14 or 15 digits (HEX)
     
-    if(Serial1.available() !=0){
+    if(antena2.available() !=0){
       Serial.print("available: ");
-      Serial.println(Serial1.available());
+      Serial.println(antena2.available());
     }
-    if(Serial1.available() > 0 ){
+    if(antena2.available() > 0 ){
       start = 1;
       time1 = millis();
-      Serial1.readBytes(aux, 14);
+      antena2.readBytes(aux, 14);
       delay(200);
 
-      next = Serial1.peek();
+      next = antena2.peek();
       if(next == aux[0]){
         long_tag = 0;
       }
@@ -170,7 +173,7 @@ void loop() {
       else{
         long_tag = 1;
         delay(200);
-        Serial1.readBytes(auxf, 1);
+        antena2.readBytes(auxf, 1);
       }
 
       //copy the tag to the array card
@@ -184,7 +187,7 @@ void loop() {
       else{
         card[14] = 0;
       }
-      Serial1.flush();
+      antena2.flush();
       delay(1000);
 
       int httpCode;
@@ -277,8 +280,12 @@ void loop() {
       }
     }
   }
-  Serial1.flush();
-  Serial1.end();
+
+  antena1.flush();
+  antena1.end();
+  
+  antena2.flush();
+  antena2.end();
 }
 
 //send to server
