@@ -16,7 +16,7 @@
 
 //US pins
 #define pino_trigger 0
-#define pino_echo 4
+#define pino_echo 12
 
 //connection parameters
 const char *ssid =  "Dermoestetica" ;// change according to your Network - cannot be longer than 32 characters!
@@ -56,8 +56,8 @@ String ID_Local_Acesso = "1";
 String st = "false";
 
 //init
-//SoftwareSerial serialArtificial(15, 16, false, 256); //1º TX do leitor, 2º RX do leitor
-HardwareSerial serialArtificial(0);
+//HardwareSerial serialArtificial(0);
+HardwareSerial Serial1(1);
 Ultrasonic ultrasonic(pino_trigger, pino_echo);
 
 StaticJsonBuffer<1000> b;
@@ -77,8 +77,8 @@ void setup() {
   digitalWrite(LED_O, HIGH); //set turned off
 
   Serial.begin(9600);    // Initialize serial communications
-  serialArtificial.begin(9600);
-  serialArtificial.flush();
+  Serial1.begin(9600, SERIAL_8N1, 33, 32);
+  Serial1.flush();
 
   delay(250);
   Serial.println("Conectando....");
@@ -144,23 +144,23 @@ void loop() {
   }
 
   
-  serialArtificial.begin(9600);
+  Serial1.begin(9600, SERIAL_8N1, 33, 32);
   //timing 
   if((start == 0) || ((millis() - time1) >= 5000)){
     delay(200);
     //read a tag with 14 or 15 digits (HEX)
     
-    if(serialArtificial.available() !=0){
+    if(Serial1.available() !=0){
       Serial.print("available: ");
-      Serial.println(serialArtificial.available());
+      Serial.println(Serial1.available());
     }
-    if(serialArtificial.available() > 0 ){
+    if(Serial1.available() > 0 ){
       start = 1;
       time1 = millis();
-      serialArtificial.readBytes(aux, 14);
+      Serial1.readBytes(aux, 14);
       delay(200);
 
-      next = serialArtificial.peek();
+      next = Serial1.peek();
       if(next == aux[0]){
         long_tag = 0;
       }
@@ -170,7 +170,7 @@ void loop() {
       else{
         long_tag = 1;
         delay(200);
-        serialArtificial.readBytes(auxf, 1);
+        Serial1.readBytes(auxf, 1);
       }
 
       //copy the tag to the array card
@@ -184,7 +184,7 @@ void loop() {
       else{
         card[14] = 0;
       }
-      serialArtificial.flush();
+      Serial1.flush();
       delay(1000);
 
       int httpCode;
@@ -277,8 +277,8 @@ void loop() {
       }
     }
   }
-  serialArtificial.flush();
-  serialArtificial.end();
+  Serial1.flush();
+  Serial1.end();
 }
 
 //send to server
