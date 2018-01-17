@@ -24,17 +24,16 @@ const char *pass =  "dermoaju2017se"; // change according to your Network
 //const char *httpdestinationauth = "http://192.168.15.59:8081/token";// "http://httpbin.org/post"; // //
 const char *httpdestination = "http://www.appis.com.br/pontoapi/api/registro_acessos";
 
-
 //auxs
 unsigned char aux[14];
 unsigned char auxf[1];
 unsigned char next;
 
 //tag vars
-int num_card;
-int const num_card_t = 2;
+int num_card_saved;
+int const num_card_max = 100;
 int long_tag;
-String saved_cards[num_card_t];
+String saved_cards[num_card_max];
 unsigned char card[15];
 
 //stats vars
@@ -65,7 +64,7 @@ StaticJsonBuffer<1000> b;
 JsonObject* payload = &(b.createObject());
 
 void setup() {
-  num_card = 0;
+  num_card_saved = 0;
   long_tag = 0;
 
   pinMode(TRAVA, OUTPUT); //Initiate lock
@@ -96,8 +95,7 @@ void setup() {
     Serial.print(".");
   }
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Wifi conectado.");
-    delay(1000);
+    mensagemConectado();
     connected = 1;
     digitalWrite(LED_C, HIGH);
     digitalWrite(LED_O, LOW);
@@ -111,7 +109,6 @@ void setup() {
     
   } 
   mensagemInicial();
-  delay(1000);
   /*
   //if connection is established, gets ready to ready tag
   if(connected == 1){
@@ -126,27 +123,31 @@ void setup() {
   }*/
   //time setup
   time1 = millis();
-  time2 = millis();
+  time2 = millis();  
 }
 
 void loop() {
   //status led setup
-  if (WiFi.status() == WL_CONNECTED) {
-    digitalWrite(LED_C, HIGH);
-    digitalWrite(LED_O, LOW);
-    connected = 1;
-  }
-  else{ 
+  if(WiFi.status() != WL_CONNECTED) {
+    WiFi.disconnect(true);
+    WiFi.begin(ssid, pass);
+    Serial.println("Não conectado. Conectando...");
     digitalWrite(LED_C, LOW);
     digitalWrite(LED_O, HIGH);
     connected = 0;
+  }
+  else{
+    mensagemConectado();
+    digitalWrite(LED_C, HIGH);
+    digitalWrite(LED_O, LOW);
+    connected = 1;
   }
 
   
   serialArtificial.begin(9600);
   //timing 
   if((start == 0) || ((millis() - time1) >= 5000)){
-    delay(1000);
+    delay(250);
     //read a tag with 14 or 15 digits (HEX)
     
     if(serialArtificial.available() !=0){
@@ -202,9 +203,14 @@ void loop() {
         
         if(httpCode == 201){
           online = 1;
-          saved_cards[num_card] = rfid;
-          num_card++;
-          if(num_card >= num_card_t) num_card = 0;
+          saved_cards[num_card_saved] = rfid;
+          Serial.print("Salvando: ");
+          Serial.println(rfid);
+          
+          num_card_saved++;
+
+          Serial.println(num_card_saved);
+          if(num_card_saved >= num_card_max) num_card_saved = 0;
         }
         else if(httpCode == 403){
           online = 0;
@@ -213,14 +219,21 @@ void loop() {
         }
         else{
           online = 0;
-          mensagemAcaoNegada();
-          mensagemInicial();
+          stored = 0;
+          for(int i = 0; i < num_card_saved; i++){
+            if(saved_cards[i] == rfid){
+              Serial.print("Cartao salvo encontrado: ");
+              Serial.println(rfid);
+              stored = 1;
+              break;
+            }
+          }
         }
       }
       else{
       //if not connected, test if the card is saved locally
         stored = 0;
-        for(int i = 0; i < num_card; i++){
+        for(int i = 0; i < num_card_saved; i++){
           if(saved_cards[i] == rfid){
             stored = 1;
             break;
@@ -234,6 +247,8 @@ void loop() {
  
       //open the door
       if(online || stored){
+        online = 0;
+        stored = 0;
         digitalWrite(TRAVA, HIGH);
         mensagemEntradaLiberada();
         delay(5000);
@@ -261,43 +276,6 @@ void loop() {
   serialArtificial.flush();
   serialArtificial.end();
 }
-
-
-/*//send to server
-int sendPOST(String httpdestination, String header, String body, bool auth){
-  int httpCode;
-  if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
-
-      HTTPClient http;    //Declare object of class HTTPClient
-
-      http.begin(httpdestination);
-      if(auth) http.addHeader("Authorization", header);
-      http.addHeader("Content-Type", "application/x-www-form-urlencoded");  //Specify content-type header
-
-
-      httpCode = http.POST(body);   //Send the request
-      String pl = http.getString();                  //Get the response payload
-      char pl2[1000];
-      pl.toCharArray(pl2, 1000);
-
-
-      JsonObject* x;
-      StaticJsonBuffer<1000> JSONBuffer;   //Memory pool
-      x = &(JSONBuffer.parseObject(pl2)); //Parse message
-
-      payload = x;
-      Serial.println(httpCode);   //Print HTTP return code
-      Serial.println(pl);    //Print request response payload
-
-
-      http.end();  //Close connection
-
-    }else{
-
-       Serial.println("Error in WiFi connection");
-    }
-    return httpCode;
-} */
 
 //send to server
 int sendPOST(String httpdestination, String body){
@@ -351,6 +329,7 @@ String createMsgUrlEnc(String rfid, String st){
 //Serial messages
 void mensagemInicial() {
   Serial.println("Aproxime seu cartão");
+  delay(1000);
 }
 
 void mensagemEntradaLiberada(){
@@ -370,5 +349,10 @@ void mensagemAcaoNegada(){
 
 void mensagemCartaoNaoAut(){
   Serial.println("Cartão não autorizado!");
+  delay(1000);
+}
+
+void mensagemConectado(){
+  Serial.println("Wifi conectado!");
   delay(1000);
 }
