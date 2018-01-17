@@ -147,7 +147,7 @@ void loop() {
   serialArtificial.begin(9600);
   //timing 
   if((start == 0) || ((millis() - time1) >= 5000)){
-    delay(250);
+    delay(200);
     //read a tag with 14 or 15 digits (HEX)
     
     if(serialArtificial.available() !=0){
@@ -158,7 +158,7 @@ void loop() {
       start = 1;
       time1 = millis();
       serialArtificial.readBytes(aux, 14);
-      delay(250);
+      delay(200);
 
       next = serialArtificial.peek();
       if(next == aux[0]){
@@ -169,7 +169,7 @@ void loop() {
       }
       else{
         long_tag = 1;
-        delay(250);
+        delay(200);
         serialArtificial.readBytes(auxf, 1);
       }
 
@@ -203,12 +203,16 @@ void loop() {
         
         if(httpCode == 201){
           online = 1;
-          saved_cards[num_card_saved] = rfid;
-          Serial.print("Salvando: ");
-          Serial.println(rfid);
-          
-          num_card_saved++;
-
+          int already_saved = 0;
+          for(int i = 0; i < num_card_saved; i++){
+            if(saved_cards[i] == rfid) already_saved = 1;
+          }
+          if(already_saved == 0){
+            saved_cards[num_card_saved] = rfid;
+            num_card_saved++;
+            Serial.print("Salvando: ");
+            Serial.println(rfid);
+          }
           Serial.println(num_card_saved);
           if(num_card_saved >= num_card_max) num_card_saved = 0;
         }
